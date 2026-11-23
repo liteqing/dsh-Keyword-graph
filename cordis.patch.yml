@@ -1,7 +1,7 @@
-# dsh-convo-graph —— DSH bundle patch
+# dsh-keyword-graph —— DSH bundle patch
 # 安装（本地开发）：dsh plugin --profile desktop add "link:<仓库绝对路径>"
-# 发布后：dsh plugin --profile desktop add dsh-convo-graph
+# 发布后：dsh plugin --profile desktop add dsh-keyword-graph
 # ⚠️ name 必须与包名完全一致，否则「装上了但页面 404」
 - insert:
-    - id: dsh-convo-graph
-      name: dsh-convo-graph
+    - id: dsh-keyword-graph
+      name: dsh-keyword-graph

@@ -45,9 +45,9 @@
 │                                          │  右侧面板        │
 │         力导向图（Canvas）                │                 │
 │                                          │ ① 主题详情：     │
-│      "物理"●────●"材质词"                │   相关消息列表   │
+│      "笔记"●────●"书单"                  │   相关消息列表   │
 │         │      ╲    │                    │   （带摘要）     │
-│      "lrose"●    ●会话节点               │   点消息→全文    │
+│      "notes"●    ●会话节点               │   点消息→全文    │
 │                                          │                 │
 │                                          │ ② 相关会话：     │
 │                                          │   共享主题+分数  │
@@ -119,19 +119,19 @@
 {
   "formatVersion": 1,
   "sessionId": "session-…",
-  "workspace": "C:\\Users\\demo\\projects\\demo-workspace",
-  "title": "示例会话：插件配置与清理",
+  "workspace": "C:\\Users\\demo\\projects\\reading-notes",
+  "title": "示例会话：整理读书笔记",
   "createdAt": 1791207848591,
   "updatedAt": 1792825246797,
   "sourceMtime": 1792825246800,
   "sourceSize": 11925784,
   "messages": [
-    {"seq": 8, "role": "user", "time": 1791207848591, "turn": 1, "snippet": "帮我把这个插件的配置改一下…"}
+    {"seq": 8, "role": "user", "time": 1791207848591, "turn": 1, "snippet": "帮我把这几本书的笔记按主题整理一下…"}
   ],
   "keywords": [
-    {"word": "物理", "score": 0.82, "count": 40, "msgs": [3, 17, 42]}
+    {"word": "笔记", "score": 0.82, "count": 40, "msgs": [3, 17, 42]}
   ],
-  "edges": [{"a": "物理", "b": "lrose", "weight": 12}]
+  "edges": [{"a": "笔记", "b": "书单", "weight": 12}]
 }
 ```
 - `snippet` 截取消息文本前 80 字；**全文不存**，点消息时按 seq 现读源文件

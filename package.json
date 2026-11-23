@@ -1,5 +1,5 @@
 {
-  "name": "dsh-convo-graph",
+  "name": "dsh-keyword-graph",
   "version": "0.1.0",
   "description": "DSH 会话图谱：顶栏图谱标签，当前会话主题点线图，点击定位消息，手动关联跨会话",
   "type": "module",

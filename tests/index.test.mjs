@@ -73,7 +73,7 @@ async function poll(fn, timeoutMs = 15000) {
 }
 
 test('挂载：name/inject 正确，六条 exact 路由，effect 清理全部卸载', () => {
-  assert.equal(plugin.name, 'dsh-convo-graph')
+  assert.equal(plugin.name, 'dsh-keyword-graph')
   assert.deepEqual(plugin.inject, ['webServer', 'connection'])
   const m = mount(makeHome())
   try {
@@ -384,7 +384,7 @@ test('excerpts worker 报错 → 按 id:word 精确 resolve null，不误伤 ind
   assert.equal(await withTimeout(p), null)
 })
 
-test('writeIndex 落盘失败不崩宿主：try/catch 吞错并以 [convo-graph] 前缀记录', () => {
+test('writeIndex 落盘失败不崩宿主：try/catch 吞错并以 [keyword-graph] 前缀记录', () => {
   const files = new Map([['a', '/fake/a']])
   const worker = fakeWorker()
   const store = {
@@ -400,7 +400,7 @@ test('writeIndex 落盘失败不崩宿主：try/catch 吞错并以 [convo-graph]
     bridge.requestIndex('a')
     assert.doesNotThrow(() => worker.emit('message', { type: 'indexed', id: 'a', index: { sessionId: 'a' } }))
   } finally { console.error = orig }
-  assert.ok(errs.some(s => s.includes('[convo-graph]')), '应以 [convo-graph] 前缀 console.error')
+  assert.ok(errs.some(s => s.includes('[keyword-graph]')), '应以 [keyword-graph] 前缀 console.error')
   assert.deepEqual(bridge.status(), { queue: 0, indexing: null }) // 队列状态正常复位
 })
 
