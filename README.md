@@ -24,11 +24,11 @@ DSH 插件：在会话顶栏加一个「图谱」标签，把当前会话的主�
 
 - 装了插件市场（dshmarket）的：在市场的「从 GitHub 安装」里填
   ```
-  github:<你的GitHub用户名>/dsh-Keyword-graph
+  github:liteqing/dsh-Keyword-graph
   ```
 - 有 `dsh` 命令行的：
   ```
-  dsh plugin --profile desktop add "github:<你的GitHub用户名>/dsh-Keyword-graph"
+  dsh plugin --profile desktop add "github:liteqing/dsh-Keyword-graph"
   ```
 
 装完**完全退出 DSH（含托盘）再启动**。打开任意会话，顶栏出现「图谱」标签即成功。
