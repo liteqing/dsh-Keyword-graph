@@ -59,6 +59,24 @@ test('config 白名单+默认值', () => {
   assert.equal(s.readConfig().evil, undefined)
 })
 
+test('非字符串 id 拒绝（undefined/null/数字）', () => {
+  const s = createStore(tmp())
+  assert.throws(() => s.writeIndex(idx(undefined, [])))
+  assert.equal(s.readIndex(null), null)
+  assert.equal(s.readIndex(42), null)
+  assert.equal(s.readIndex(undefined), null)
+})
+
+test('原子写后目录无 .tmp 残留', () => {
+  const d = tmp()
+  const s = createStore(d)
+  s.writeIndex(idx('session-a', ['物理']))
+  s.addLink('a', 'b')
+  s.writeConfig({ accent: '#ff0000' })
+  const entries = [...fs.readdirSync(d), ...fs.readdirSync(path.join(d, 'index'))]
+  assert.deepEqual(entries.filter(n => n.endsWith('.tmp')), [])
+})
+
 test('computeDf 与 cleanOrphans', () => {
   const s = createStore(tmp())
   s.writeIndex(idx('a', ['物理']))
