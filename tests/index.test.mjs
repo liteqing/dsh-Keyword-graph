@@ -19,7 +19,7 @@ test.after(() => { if (ORIG_HOME === undefined) delete process.env.DSH_HOME; els
 const RECORDS = [
   { type: 'session', id: 'sess-fx', createdAt: 1000, cwd: 'E:\\demo' },
   { type: 'turn/start', seq: 1, time: 1001, data: { turn: 1 } },
-  { type: 'user/message', seq: 2, time: 1002, data: { role: 'user', content: [{ type: 'text', text: '物理太果冻了，改一下物理' }] } },
+  { type: 'user/message', seq: 2, time: 1002, data: { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '物理太果冻了，改一下物理' }] } },
   { type: 'assistant/message', seq: 3, time: 1003, data: { turn: 1, message: { role: 'assistant', content: [{ type: 'text', text: '物理已调整完毕' }] } } },
   { type: 'session/title', seq: 4, time: 1004, data: { title: '物理调整' } }
 ]
@@ -221,12 +221,35 @@ test('端到端：真实 worker 建索引 → ready，message 读原文；重挂
     assert.equal(st.indexing, null)
   } finally { m2.cleanup() }
   // 源文件变化（size 变）→ 重挂载触发重算
-  addSession(home, 'sess-a', [...RECORDS, { type: 'user/message', seq: 5, time: 1005, data: { role: 'user', content: [{ type: 'text', text: '再来一条' }] } }])
+  addSession(home, 'sess-a', [...RECORDS, { type: 'user/message', seq: 5, time: 1005, data: { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '再来一条' }] } }])
   const m3 = mount(home)
   try {
     const st = payload(await api(m3.routes, 'op=status'))
     assert.ok(st.indexing === 'sess-a' || st.queue > 0)
   } finally { m3.cleanup() }
+})
+
+test('索引格式版本落后 → 重挂载自动重建（旧索引缺 dist）', async () => {
+  const home = makeHome()
+  addSession(home, 'sess-a')
+  const m = mount(home)
+  const file = path.join(home, 'dsh-graph', 'index', 'sess-a.json')
+  try {
+    await poll(async () => {
+      const r = await api(m.routes, 'op=session&id=sess-a')
+      return payload(r).status === 'ready' ? r : null
+    })
+  } finally { m.cleanup() }
+  const old = JSON.parse(fs.readFileSync(file, 'utf8'))
+  assert.equal(old.formatVersion, 5)
+  fs.writeFileSync(file, JSON.stringify({ ...old, formatVersion: 2 }))
+  const m2 = mount(home)
+  try {
+    await poll(async () => {
+      const cur = JSON.parse(fs.readFileSync(file, 'utf8'))
+      return cur.formatVersion === 5 ? cur : null
+    })
+  } finally { m2.cleanup() }
 })
 
 test('watcher 增量：挂载后新增会话，防抖后自动建索引', async () => {
@@ -336,6 +359,29 @@ test('R16：同 key 并发 readMessage 复用同一 Promise，worker 只收到�
   assert.deepEqual(r1, { text: 'ok' })
   assert.deepEqual(r2, { text: 'ok' })
   assert.deepEqual(bridge.status(), { queue: 0, indexing: null })
+})
+
+test('excerpts 与同 id 的 index 响应 key 不冲突；未知 id/空词直接 null', async () => {
+  const { worker, bridge } = bridgeSetup()
+  bridge.requestIndex('a')                       // 在途 index，响应 key 'a'
+  const p = bridge.excerpts('a', '物理')         // 排队，响应 key 'a:x:物理'
+  worker.emit('message', { type: 'indexed', id: 'a', index: { sessionId: 'a', keywords: [] } })
+  assert.equal(worker.posted.length, 2)
+  assert.equal(worker.posted[1].type, 'excerpts')
+  worker.emit('message', { type: 'excerpts', id: 'a', word: '物理', result: [{ seq: 1, excerpt: '…物理…' }] })
+  assert.deepEqual(await withTimeout(p), [{ seq: 1, excerpt: '…物理…' }])
+  assert.equal(await bridge.excerpts('zzz', '物理'), null)
+  assert.equal(await bridge.excerpts('a', '  '), null)
+  assert.deepEqual(bridge.status(), { queue: 0, indexing: null })
+})
+
+test('excerpts worker 报错 → 按 id:word 精确 resolve null，不误伤 index 请求', async () => {
+  const { worker, bridge } = bridgeSetup()
+  bridge.requestIndex('a')
+  const p = bridge.excerpts('a', '物理')
+  worker.emit('message', { type: 'indexed', id: 'a', index: { sessionId: 'a', keywords: [] } })
+  worker.emit('message', { type: 'error', id: 'a', word: '物理', error: 'boom' })
+  assert.equal(await withTimeout(p), null)
 })
 
 test('writeIndex 落盘失败不崩宿主：try/catch 吞错并以 [convo-graph] 前缀记录', () => {

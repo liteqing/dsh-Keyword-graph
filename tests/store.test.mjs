@@ -40,15 +40,20 @@ test('links 去重+取消', () => {
   assert.equal(s.readLinks().length, 0)
 })
 
-test('related 按共享词分数排序且排除已关联', () => {
+test('related 按共享词分数排序，已关联会话带 linked 标记并排在最前', () => {
   const s = createStore(tmp())
   s.writeIndex(idx('cur', ['物理', 'lrose', '模组']))
   s.writeIndex(idx('x', ['物理', 'lrose']))
   s.writeIndex(idx('y', ['模组']))
+  s.writeIndex(idx('z', ['无关词']))
   s.addLink('cur', 'y')
+  s.addLink('cur', 'z')
   const rel = s.related('cur')
-  assert.deepEqual(rel.map(r => r.sessionId), ['x'])
-  assert.deepEqual(rel[0].shared.sort(), ['lrose', '物理'])
+  assert.deepEqual(rel.map(r => r.sessionId), ['y', 'z', 'x'])
+  assert.equal(rel.find(r => r.sessionId === 'y').linked, true)
+  assert.equal(rel.find(r => r.sessionId === 'z').linked, true)
+  assert.equal(rel.find(r => r.sessionId === 'x').linked, false)
+  assert.deepEqual(rel.find(r => r.sessionId === 'x').shared.sort(), ['lrose', '物理'])
 })
 
 test('config 白名单+默认值', () => {

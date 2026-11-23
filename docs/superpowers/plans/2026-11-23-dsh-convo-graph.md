@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node ESM、fzstd（纯 JS zstd 解压）、Intl.Segmenter（内置中文分词）、TF-IDF、force-graph + d3-force（vendored UMD）、node --test。
 
-**Spec:** `docs/superpowers/specs/2026-11-23-dsh-convo-graph-design.md`（相对本项目根 `E:\Qoderwork\dsh-convo-graph`）
+**Spec:** `docs/superpowers/specs/2026-11-23-dsh-convo-graph-design.md`（相对仓库根目录）
 
 ## Global Constraints
 
@@ -77,7 +77,7 @@ const RECORDS = [
   { type: 'tool/call', seq: 4, time: 1004, data: {} },
   { type: 'session/title', seq: 5, time: 1005, data: { title: '物理调整' } },
   { type: 'turn/start', seq: 6, time: 1006, data: { turn: 2 } },
-  { type: 'user/message', seq: 7, time: 1007, data: { role: 'user', content: [{ type: 'text', text: '再看看胸臀' }] } }
+  { type: 'user/message', seq: 7, time: 1007, data: { role: 'user', content: [{ type: 'text', text: '再看看皮肤' }] } }
 ]
 
 test('extractSession 只取用户/AI文本，带轮次', () => {
@@ -175,9 +175,9 @@ import assert from 'node:assert/strict'
 import { tokenize, buildKeywords } from '../lib/keywords.js'
 
 const MSGS = [
-  { seq: 1, role: 'user', turn: 1, text: '帮我把lrose的物理改一下，物理太果冻了' },
-  { seq: 2, role: 'assistant', turn: 1, text: '物理参数已调整，lrose的胸臀不再果冻' },
-  { seq: 3, role: 'user', turn: 2, text: '再看看情人节皮肤' }
+  { seq: 1, role: 'user', turn: 1, text: '帮我把modx的物理改一下，物理太果冻了' },
+  { seq: 2, role: 'assistant', turn: 1, text: '物理参数已调整，modx的物理不再果冻' },
+  { seq: 3, role: 'user', turn: 2, text: '再看看模型皮肤' }
 ]
 
 test('tokenize 去停用词/短词/纯符号', () => {
@@ -880,7 +880,7 @@ cd ../.. && rm -rf tmp/vendor
 
 ```yaml
 # dsh-convo-graph —— DSH bundle patch
-# 安装（本地开发）：dsh plugin --profile desktop add "link:E:\\Qoderwork\\dsh-convo-graph"
+# 安装（本地开发）：dsh plugin --profile desktop add "link:<仓库绝对路径>"
 # 发布后：dsh plugin --profile desktop add dsh-convo-graph
 # ⚠️ name 必须与包名完全一致，否则「装上了但页面 404」
 - insert:
@@ -1209,8 +1209,8 @@ window.__ModuleLoader__.load({
 ```
 
 - [ ] **Step 2: 语法检查**：`node --check lib/client.js`（浏览器 API 不影响语法检查）
-- [ ] **Step 3: 装进 DSH**：`dsh plugin --profile desktop add "link:E:\\Qoderwork\\dsh-convo-graph"`（若 dsh CLI 不在 PATH，用 `E:\soft\DSH\plugin-tool.js` 或 DSH 设置→插件→本地安装；照养鱼插件 README 的安装路径）
-- [ ] **Step 4: 重启 DSH，打开美卡会话「美卡画质Mod安装与清理」→ 顶栏应出现「图谱」标签**
+- [ ] **Step 3: 装进 DSH**：`dsh plugin --profile desktop add "link:<仓库绝对路径>"`（若 dsh CLI 不在 PATH，用 DSH 安装目录下的 `plugin-tool.js` 或 DSH 设置→插件→本地安装）
+- [ ] **Step 4: 重启 DSH，打开任意较长会话 → 顶栏应出现「图谱」标签**
 - [ ] **Step 5: 验收清单（用户操作 + 截图取证，可用 rea capture_native_ui_scenario 截 DSH 窗口）**
   1. 图谱出图、节点不重叠（碰撞生效）、拖拽回弹
   2. 悬停高亮邻居、其余淡化；选中节点鲸鱼蓝
@@ -1243,6 +1243,6 @@ window.__ModuleLoader__.load({
 
 ## 自审记录
 
-- Spec 覆盖：§3 形态/交互/视觉→Task 5/8；§4 架构/增量→Task 7；§5 索引格式→Task 3/4；§6 算法→Task 2；§7 API→Task 6（路径改为 ?op= 分发，功能等价，原因见 Global Constraints）；§8 错误处理→Task 4 坏 zstd 测试/Task 7 fail-closed/Task 3 孤儿清理/Task 8 indexing 徽标；§9 测试验收→各 Task 测试 + Task 8 清单（首测美卡会话）；§10 发布→Task 9；§11 风险兜底→Task 8 面板全文为必做路径、fzstd 不依赖 node 版本
+- Spec 覆盖：§3 形态/交互/视觉→Task 5/8；§4 架构/增量→Task 7；§5 索引格式→Task 3/4；§6 算法→Task 2；§7 API→Task 6（路径改为 ?op= 分发，功能等价，原因见 Global Constraints）；§8 错误处理→Task 4 坏 zstd 测试/Task 7 fail-closed/Task 3 孤儿清理/Task 8 indexing 徽标；§9 测试验收→各 Task 测试 + Task 8 清单（首测长会话）；§10 发布→Task 9；§11 风险兜底→Task 8 面板全文为必做路径、fzstd 不依赖 node 版本
 - 偏差说明：① 其他会话也建完整索引（仅摘要不存全文），后台串行队列满足"不阻塞当前会话"意图，keywords-only 优化推迟；② 消息定位不做跳回对话页（openView 只能切页不能滚动），直接采用 spec 兜底面板全文
 - 类型一致性：messages `{seq,role,time,turn,text/snippet}`、keywords `{word,score,count,msgs}`、edges `{a,b,weight}`、graph node `{id,kind,label,val,msgs:[{s,seq}]}`、worker 协议 key 规则（index 用 id，message 用 id:seq）在各 Task 间一致

@@ -13,6 +13,7 @@ function setup(findFile = (id) => '/fake/' + id) {
   const bridge = {
     requestIndex: (id) => { indexed.add(id) },
     readMessage: async (id, seq) => ({ message: { seq, text: '全文' + seq }, prev: null, next: null }),
+    excerpts: async (id, word) => [{ seq: 2, excerpt: '…' + word + '…' }],
     status: () => ({ queue: 0, indexing: null })
   }
   const handle = createApi({ store, bridge, findFile })
@@ -55,6 +56,17 @@ test('message 透传 bridge；未知 op 404', async () => {
   assert.equal(res.payload.result.message.text, '全文1')
   const bad = await call('nope')
   assert.equal(bad.statusCode, 404)
+})
+
+test('excerpts 透传 bridge；空/超长 word 或会话缺失 → 404', async () => {
+  const { call } = setup()
+  const res = await call('excerpts', { params: '&id=a&word=' + encodeURIComponent('物理') })
+  assert.equal(res.statusCode, 200)
+  assert.deepEqual(res.payload.result, [{ seq: 2, excerpt: '…物理…' }])
+  assert.equal((await call('excerpts', { params: '&id=a&word=' })).statusCode, 404)
+  assert.equal((await call('excerpts', { params: '&id=a&word=' + encodeURIComponent('x'.repeat(41)) })).statusCode, 404)
+  const missing = setup(() => null)
+  assert.equal((await missing.call('excerpts', { params: '&id=a&word=物理' })).statusCode, 404)
 })
 
 test('session 文件不存在→missing 且不触发索引请求', async () => {
