@@ -26,6 +26,19 @@ test('buildKeywords 词频排序+消息定位+共现边', () => {
   assert.ok(keywords.every(k => k.word !== '帮我'))
 })
 
+test('df 原型链键（constructor）不产生 NaN 分数', () => {
+  const msgs = [
+    { seq: 1, role: 'user', turn: 1, text: 'constructor constructor 是什么' },
+    { seq: 2, role: 'assistant', turn: 1, text: 'constructor 是构造函数' }
+  ]
+  const { keywords } = buildKeywords(msgs) // 默认 df = {}
+  assert.ok(keywords.every(k => Number.isFinite(k.score)))
+  const ctor = keywords.find(k => k.word === 'constructor')
+  assert.ok(ctor)
+  // df=0、totalSessions=1 → idf = ln((1+1)/(0+1)) + 1 = ln2 + 1
+  assert.ok(Math.abs(ctor.score - ctor.count * (Math.log(2) + 1)) < 1e-9)
+})
+
 test('topN 上限 30', () => {
   // 用拉丁词避免分词器把 '词0' 拆成单字导致关键词为空、测试空转
   const many = Array.from({ length: 60 }, (_, i) => ({ seq: i, role: 'user', turn: i, text: 'word' + i + ' word' + i }))
