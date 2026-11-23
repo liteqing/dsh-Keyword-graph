@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { createStore } from '../lib/store.js'
-import { createApi } from '../lib/api.js'
+import { createApi, readBody } from '../lib/api.js'
 
 function setup(findFile = (id) => '/fake/' + id) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-graph-api-'))
@@ -162,4 +162,24 @@ test('status 透传 bridge.status', async () => {
   assert.equal(res.payload.ok, true)
   assert.equal(res.payload.queue, 0)
   assert.equal(res.payload.indexing, null)
+})
+
+test('readBody 体积上限：超限抛 413 错误，限内正常（R13）', async () => {
+  const req = (chunks) => ({ async *[Symbol.asyncIterator]() { for (const c of chunks) yield c } })
+  await assert.rejects(() => readBody(req([Buffer.alloc(8), Buffer.alloc(8)]), 10), (e) => e.statusCode === 413)
+  await assert.rejects(() => readBody(req([Buffer.alloc(1048577)])), (e) => e.statusCode === 413)
+  assert.equal(await readBody(req([Buffer.from('hi')]), 10), 'hi')
+})
+
+test('link chunked 超 1MB → 413 json 错误不崩溃（R13）', async () => {
+  const { store, bridge } = setup()
+  const handle = createApi({ store, bridge, findFile: () => null })
+  const res = { statusCode: 0, payload: null, setHeader() {}, end(p) { this.payload = JSON.parse(p) } }
+  const req = {
+    method: 'POST', headers: {},
+    async *[Symbol.asyncIterator]() { yield Buffer.alloc(600 * 1024, 97); yield Buffer.alloc(600 * 1024, 97) }
+  }
+  await handle(req, res, new URL('http://x/dsh-graph/api?op=link'))
+  assert.equal(res.statusCode, 413)
+  assert.equal(res.payload.ok, false)
 })
