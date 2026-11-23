@@ -7,7 +7,7 @@ import zlib from 'node:zlib'
 import vm from 'node:vm'
 import { EventEmitter } from 'node:events'
 import { fileURLToPath } from 'node:url'
-import plugin, { createBridge } from '../lib/index.js'
+import plugin, { createBridge, createDebounced } from '../lib/index.js'
 import { createStore } from '../lib/store.js'
 
 const VENDOR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'lib', 'vendor')
@@ -367,6 +367,92 @@ test('cleanup 前排空 pending：bridge.close() 使在途请求 resolve null，
   assert.deepEqual(bridge.status(), { queue: 0, indexing: null })
   assert.equal(await withTimeout(bridge.readMessage('a', 2)), null)
   assert.equal(worker.posted.length, 1) // close 后不再 post
+})
+
+// —— R21#1 防抖 max-wait 单测（注入 fake 时钟，确定性验证 trailing + 硬上限）——
+function fakeSched() {
+  let now = 0, seq = 0
+  const timers = new Map()
+  return {
+    setTimeout(fn, ms) { const id = ++seq; timers.set(id, { at: now + ms, fn }); return id },
+    clearTimeout(id) { timers.delete(id) },
+    advance(ms) {
+      const end = now + ms
+      for (;;) {
+        let best = null
+        for (const [id, t] of timers) if (t.at <= end && (best === null || t.at < timers.get(best).at)) best = id
+        if (best === null) break
+        const t = timers.get(best)
+        timers.delete(best); now = t.at; t.fn()
+      }
+      now = end
+    },
+    pending() { return timers.size }
+  }
+}
+
+test('R21 防抖：trailing 3s 触发，触发后两个定时器都清掉', () => {
+  const sched = fakeSched()
+  let fired = 0
+  const d = createDebounced(() => fired++, 3000, 10000, sched)
+  d.trigger()
+  sched.advance(2999)
+  assert.equal(fired, 0)
+  sched.advance(1)
+  assert.equal(fired, 1)
+  assert.equal(sched.pending(), 0)
+})
+
+test('R21 防抖：连续事件间隔 <3s 不再饿死 —— 10s max-wait 强制触发', () => {
+  const sched = fakeSched()
+  let fired = 0
+  const d = createDebounced(() => fired++, 3000, 10000, sched)
+  for (let i = 0; i < 5; i++) { d.trigger(); sched.advance(2000) } // 每 2s 一次写入，trailing 永远差 1s
+  assert.equal(fired, 1)          // 10s 硬上限到点触发
+  assert.equal(sched.pending(), 0) // trailing/max 定时器都清掉
+  d.trigger(); sched.advance(3000) // 触发后进入下一轮，可再次正常触发
+  assert.equal(fired, 2)
+})
+
+test('R21 防抖：cancel 清掉 trailing 与 max-wait 两个定时器', () => {
+  const sched = fakeSched()
+  let fired = 0
+  const d = createDebounced(() => fired++, 3000, 10000, sched)
+  d.trigger(); sched.advance(2000); d.trigger()
+  d.cancel()
+  assert.equal(sched.pending(), 0)
+  sched.advance(20000)
+  assert.equal(fired, 0)
+})
+
+test('R21 插队：API requestIndex 插到队首，watcher 尾插保持 FIFO', () => {
+  const { worker, bridge, files } = bridgeSetup()
+  files.set('c', '/fake/c')
+  bridge.readMessage('a', 1)          // 在途 read-message 占住 worker
+  bridge.requestIndex('a', false)     // watcher 语义：尾插 → queue [a]
+  bridge.requestIndex('b', false)     // queue [a, b]
+  assert.deepEqual(bridge.status(), { queue: 2, indexing: 'a' })
+  bridge.requestIndex('c')            // API 语义：插队 → queue [c, a, b]
+  assert.equal(bridge.status().queue, 3)
+  worker.emit('message', { type: 'message', id: 'a', seq: 1, result: null })
+  assert.equal(worker.posted[1].type, 'index-one')
+  assert.equal(worker.posted[1].id, 'c') // c 下一个处理，不排在初始扫描后面
+})
+
+test('R21 插队：已排队者移到队首不重复入队；在途者原地不动', () => {
+  const { worker, bridge, files } = bridgeSetup()
+  files.set('c', '/fake/c')
+  bridge.requestIndex('a', false)   // 在途 a
+  bridge.requestIndex('b', false)   // queue [b]
+  bridge.requestIndex('c', false)   // queue [b, c]
+  bridge.requestIndex('a')          // 在途 → 原地不动，不重复 post
+  assert.equal(worker.posted.length, 1)
+  bridge.requestIndex('c')          // 已排队 → 移到队首（去重仍生效）
+  assert.equal(bridge.status().queue, 2)
+  worker.emit('message', { type: 'indexed', id: 'a', index: { sessionId: 'a', keywords: [] } })
+  assert.equal(worker.posted.length, 2)
+  assert.equal(worker.posted[1].id, 'c')
+  assert.equal(bridge.status().queue, 1)
 })
 
 test('readMessage 文件不存在 → null；requestIndex 未知 id 静默', async () => {

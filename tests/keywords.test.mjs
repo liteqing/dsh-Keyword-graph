@@ -39,6 +39,13 @@ test('df 原型链键（constructor）不产生 NaN 分数', () => {
   assert.ok(Math.abs(ctor.score - ctor.count * (Math.log(2) + 1)) < 1e-9)
 })
 
+test('extraStopwords：配置词命中语料 → 不进关键词与共现边', () => {
+  const { keywords, edges } = buildKeywords(MSGS, { df: { 物理: 1, lrose: 1 }, totalSessions: 4, extraStopwords: ['物理'] })
+  assert.ok(keywords.length > 0)                          // 其余词仍在
+  assert.ok(keywords.every(k => k.word !== '物理'))       //  fixture 高频词被停用
+  assert.ok(edges.every(e => e.a !== '物理' && e.b !== '物理'))
+})
+
 test('topN 上限 30', () => {
   // 用拉丁词避免分词器把 '词0' 拆成单字导致关键词为空、测试空转
   const many = Array.from({ length: 60 }, (_, i) => ({ seq: i, role: 'user', turn: i, text: 'word' + i + ' word' + i }))

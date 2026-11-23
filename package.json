@@ -16,5 +16,7 @@
     "client": { "inject": [], "platform": "web" }
   },
   "license": "MIT",
+  "author": "Nico",
+  "engines": { "node": ">=22.15" },
   "dependencies": { "fzstd": "0.1.1" }
 }
